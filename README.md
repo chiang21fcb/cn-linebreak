@@ -1,5 +1,9 @@
 # cn-linebreak
 
+[![CI](https://github.com/chiang21fcb/cn-linebreak/actions/workflows/ci.yml/badge.svg)](https://github.com/chiang21fcb/cn-linebreak/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/chiang21fcb/cn-linebreak)](https://github.com/chiang21fcb/cn-linebreak/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 中文网页文案断行审查与修复工具。把《[中文网页文案断行修复指南](docs/GUIDE.md)》中的规则变成可执行检查：
 
 - **审查**：检查**显式断行错误及高风险写法**——由 `<br>` 形成的孤字行、"一个字+标点"单独成行、行首/行尾出现禁则标点、缺少 `word-break: keep-all`、覆盖文本元素的全局 `white-space: nowrap`、过长 `.no-break`、长文案零换行点、保护词被换行拆开等。
@@ -45,6 +49,7 @@ cat page.html | cn-linebreak [options]
 | --- | --- |
 | `--fix` | 审查并把修复后 HTML 输出到 stdout；审查摘要与修复后复审结果输出到 stderr（不污染重定向） |
 | `--json` | 输出完整 JSON 报告（`ok` / `summary` / `issues` / `css` / `stats` / `fixedHtml`） |
+| `--output <file>` | 把结果写入文件（`--fix` 写修复后 HTML；否则写报告），stdout 保持干净 |
 | `--strict` | 警告也视为失败（影响退出码） |
 | `--config <file>` | 读取 JSON 配置（见 [docs/CONFIGURATION.md](docs/CONFIGURATION.md)） |
 | `--help` / `--version` | 帮助 / 版本 |
