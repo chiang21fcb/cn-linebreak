@@ -1,0 +1,34 @@
+# Changelog
+
+All notable changes to cn-linebreak are documented here. Format follows
+[Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/), versions follow
+[SemVer](https://semver.org/lang/zh-CN/).
+
+## [0.1.1] - 2026-08-17
+
+### 新增（v0.1.1：修正公开使用体验）
+
+- CLI：`--help`、`--version`、`--strict`、`--config <file>`、`-`（stdin 别名）
+- CLI 退出码约定：`0`=通过，`1`=发现错误（`--strict` 含警告），`2`=参数错误，`3`=读取/解析失败
+- `--fix` 模式下 stdout 只输出修复后 HTML，审查摘要与"修复后复审"结果输出到 stderr
+- 引擎：完整 HTML void elements（`area/base/br/col/embed/hr/img/input/link/meta/param/source/track/wbr`）
+- 引擎：`.no-break` 与 `script/style/pre/…` 跳过区域按节点深度维护，支持同名标签嵌套与无引号 class
+- 引擎：行内标签末尾的标点仍视为换行点（`<strong>第一步，</strong>第二步` 会插入 `<wbr>`）
+- 引擎：CSS 选择器覆盖分析——`keep-all` 分为 `trusted/partial/none`；`.no-break` 作用域的 `nowrap` 不再误报为全局
+- 引擎：CLReq / GB-T 15834 行首闭式标点、行尾开式标点禁则
+- 引擎：保护词典（`protectedPhrases`）——插入 `<wbr>` 时跳过命中位置；审查时检测保护词被 `<br>` 拆开
+- 引擎：可配置 `breakAfter`、`minCjkLength`、`minLastLineCjk`
+- 测试：54 个用例（引擎 43 + CLI 11），覆盖路线图 §11 清单
+- 工程：GitHub Actions CI（Node 18/20/22）、CHANGELOG、CONTRIBUTING、examples/
+- DSH：标准插件包（`dsh.bundle` + `cordis.patch.yml` + `cn-linebreak/plugin` 入口）
+
+### 修正
+
+- README 能力边界：不再声称静态引擎能识别"浏览器渲染后的孤字行/词组被拆"，改为"检查显式断行错误及高风险写法"
+- 修复 `node --test test/` 在 Windows 下的目录参数问题（改 `node --test`）
+
+## [0.1.0] - 2026-08-17
+
+- 首个公开版本：HTML 静态断行审查、CSS 断行保护检查、显式 `<br>` 孤字行检查、行首标点检查、
+  长文案缺换行点检查、`.no-break` 过长检查、自动插入 `<wbr>`、CLI + CommonJS API + 测试
+- 收录《中文网页文案断行修复指南》为 `docs/GUIDE.md`

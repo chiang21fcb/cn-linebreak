@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>cn-linebreak 示例：修复后（cn-linebreak --fix before.html > after.html）</title>
+<style>
+  :where(h1, h2, p) {
+    line-break: strict;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+</style>
+</head>
+<body>
+<h2>三种扩展，<wbr>三种自由。</h2>
+<p>读产品手册，<wbr>提取事实，<wbr>输出文档。</p>
+<h2>一整条工作链，<br>每个环节都是工具。</h2>
+<p>AI 现场写插件<wbr>→读产品手册<wbr>→按培训结构输出<wbr>→换模块一句话再跑。</p>
+</body>
+</html>

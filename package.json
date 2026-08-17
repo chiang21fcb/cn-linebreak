@@ -1,7 +1,7 @@
 {
   "name": "cn-linebreak",
-  "version": "0.1.0",
-  "description": "中文网页文案断行审查与修复工具：按《中文网页文案断行修复指南》检查 HTML 中的孤字行、词组被拆、缺少 keep-all 等问题，并可自动在标点后插入 <wbr>。",
+  "version": "0.1.1",
+  "description": "中文网页文案断行审查与修复工具：按《中文网页文案断行修复指南》检查显式断行错误及高风险写法，并提供保守的 <wbr> 自动修复。同时是可在 DeepSeek Harness (DSH) 中一键安装的标准插件包（dsh.bundle）。",
   "keywords": [
     "chinese",
     "line-break",
@@ -9,12 +9,21 @@
     "html",
     "wbr",
     "cjk",
+    "dsh",
+    "dsh-plugin",
+    "chinese-typography",
+    "html-linter",
     "断行",
     "中文排版"
   ],
   "license": "MIT",
   "type": "commonjs",
   "main": "src/engine.js",
+  "exports": {
+    ".": "./src/engine.js",
+    "./plugin": "./plugin.mjs",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "cn-linebreak": "bin/cn-linebreak.js"
   },
@@ -22,14 +31,25 @@
     "src",
     "bin",
     "docs",
+    "examples",
+    "plugin.mjs",
+    "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
   ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   },
   "author": "chiang21fcb",
   "repository": {

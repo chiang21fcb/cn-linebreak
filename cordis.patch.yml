@@ -1,0 +1,5 @@
+# cn-linebreak bundle patch: adds the cn_linebreak_audit tool row.
+# See https://github.com/chiang21fcb/cn-linebreak — engine docs in docs/GUIDE.md.
+- insert:
+    - id: cn-linebreak
+      name: cn-linebreak/plugin

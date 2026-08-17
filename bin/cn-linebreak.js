@@ -2,73 +2,186 @@
 'use strict'
 
 /**
- * cn-linebreak CLI
+ * cn-linebreak CLI (v0.1.1)
  *
- *   cn-linebreak <file.html>         审查一个 HTML 文件
- *   cn-linebreak --fix <file.html>   审查并把修复后的 HTML 打印到 stdout
- *   cn-linebreak --json <file.html>  输出完整 JSON 报告
- *   cat page.html | cn-linebreak     从 stdin 读取
+ *   cn-linebreak [options] <file.html>    审查一个 HTML 文件
+ *   cat page.html | cn-linebreak [options]  从 stdin 读取
+ *
+ * Options:
+ *   --fix             审查并在 stdout 输出修复后的 HTML；审查摘要走 stderr
+ *   --json            输出完整 JSON 报告（含 issues/css/stats/fixedHtml）
+ *   --strict          警告也视为失败（影响退出码）
+ *   --config <file>   读取 JSON 配置（protectedPhrases / breakAfter / …）
+ *   --help            显示帮助
+ *   --version         显示版本
+ *
+ * Exit codes:
+ *   0  未发现阻断问题
+ *   1  发现审查错误（--strict 时警告也算）
+ *   2  参数错误
+ *   3  文件读取/解析失败
  */
 
 const fs = require('fs')
 const path = require('path')
-const { auditHtml } = require('../src/engine')
+const { auditHtml, normalizeConfig } = require('../src/engine')
 
-const args = process.argv.slice(2)
+function version() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
 
 function usage() {
   console.error(
-    '用法: cn-linebreak [--fix] [--json] <file.html>\n' +
-    '      cat page.html | cn-linebreak [--fix] [--json]\n' +
+    'cn-linebreak v' + version() + ' — 中文网页文案断行审查与修复工具\n' +
+    '\n' +
+    '用法: cn-linebreak [options] <file.html>\n' +
+    '      cat page.html | cn-linebreak [options]\n' +
+    '\n' +
     '选项:\n' +
-    '  --fix   审查并在 stdout 输出修复后的 HTML\n' +
-    '  --json  输出完整 JSON 报告（含 issues/css/stats）'
+    '  --fix              审查并输出修复后的 HTML 到 stdout（摘要走 stderr）\n' +
+    '  --json             输出完整 JSON 报告\n' +
+    '  --strict           警告也计入失败（退出码 1）\n' +
+    '  --config <file>    读取 JSON 配置文件\n' +
+    '  --help             显示本帮助\n' +
+    '  --version          显示版本号\n' +
+    '\n' +
+    '退出码: 0=通过 1=发现错误 2=参数错误 3=读取/解析失败'
   )
-  process.exit(2)
+}
+
+function parseArgs(args) {
+  const opts = { fix: false, json: false, strict: false, config: null, file: null }
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i]
+    if (a === '--fix') opts.fix = true
+    else if (a === '--json') opts.json = true
+    else if (a === '--strict') opts.strict = true
+    else if (a === '--help' || a === '-h') { opts.help = true }
+    else if (a === '--version' || a === '-v') { opts.version = true }
+    else if (a === '--config') {
+      const v = args[i + 1]
+      if (!v || v.startsWith('--')) return { error: '--config 需要一个文件路径' }
+      opts.config = v
+      i += 1
+    } else if (a.startsWith('-') && a !== '-') {
+      return { error: '未知选项: ' + a }
+    } else if (opts.file === null) {
+      opts.file = a
+    } else {
+      return { error: '只能指定一个输入文件' }
+    }
+  }
+  return opts
+}
+
+function loadConfig(file) {
+  if (!file) return {}
+  try {
+    const raw = fs.readFileSync(file, 'utf8')
+    return JSON.parse(raw)
+  } catch (error) {
+    const err = new Error('无法读取配置文件 ' + file + ': ' + (error && error.message ? error.message : String(error)))
+    err.code = 'CONFIG'
+    throw err
+  }
 }
 
 function main() {
-  let fix = false
-  let json = false
-  let file = null
-
-  for (const a of args) {
-    if (a === '--fix') fix = true
-    else if (a === '--json') json = true
-    else if (a.startsWith('-')) usage()
-    else if (file === null) file = a
-    else usage()
+  const opts = parseArgs(process.argv.slice(2))
+  if (opts.error) {
+    console.error('错误: ' + opts.error)
+    usage()
+    process.exit(2)
+  }
+  if (opts.help) {
+    usage()
+    process.exit(0)
+  }
+  if (opts.version) {
+    console.log('cn-linebreak v' + version())
+    process.exit(0)
   }
 
-  const html = file === null
-    ? fs.readFileSync(0, 'utf8')
-    : fs.readFileSync(path.resolve(file), 'utf8')
+  let config
+  try {
+    config = normalizeConfig(loadConfig(opts.config))
+  } catch (error) {
+    console.error('错误: ' + error.message)
+    process.exit(3)
+  }
+  if (opts.strict) config.strictWarnings = true
 
-  const report = auditHtml(html, { mode: fix ? 'fix' : 'audit' })
-
-  if (json) {
-    process.stdout.write(JSON.stringify(report, null, 2) + '\n')
-    return
+  // Read input (`-` means stdin)
+  let html
+  try {
+    html = (opts.file === null || opts.file === '-')
+      ? fs.readFileSync(0, 'utf8')
+      : fs.readFileSync(path.resolve(opts.file), 'utf8')
+  } catch (error) {
+    console.error('错误: 无法读取输入: ' + (error && error.message ? error.message : String(error)))
+    process.exit(3)
   }
 
-  if (fix) {
+  // Audit (and optionally fix)
+  let report
+  try {
+    report = auditHtml(html, { mode: opts.fix ? 'fix' : 'audit', config })
+  } catch (error) {
+    console.error('错误: 解析失败: ' + (error && error.message ? error.message : String(error)))
+    process.exit(3)
+  }
+
+  if (opts.fix) {
+    // stdout: ONLY the fixed HTML; summary goes to stderr (re-audit the fix)
+    let after
+    try {
+      after = auditHtml(report.fixedHtml, { mode: 'audit', config })
+    } catch {
+      after = report
+    }
     process.stdout.write(report.fixedHtml)
+    printSummary(report, after, process.stderr)
+    process.exitCode = exitCodeFor(after, config.strictWarnings)
     return
   }
 
+  if (opts.json) {
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n')
+  } else {
+    printSummary(report, null, process.stdout)
+  }
+  process.exitCode = exitCodeFor(report, config.strictWarnings)
+}
+
+function exitCodeFor(report, strict) {
+  const hasError = report.issues.some((i) => i.severity === 'error')
+  const hasWarn = report.issues.some((i) => i.severity === 'warn')
+  if (hasError) return 1
+  if (strict && hasWarn) return 1
+  return 0
+}
+
+function printSummary(report, after, stream) {
   const label = report.ok ? '✓' : '✗'
-  console.log(`${label} ${report.summary}`)
-  console.log(`  元素 ${report.stats.elements} 个（含中文 ${report.stats.cjkElements} 个），` +
-    `<wbr> ${report.stats.wbrs} 个，<br> ${report.stats.breaks} 个`)
-  console.log('')
+  stream.write(label + ' ' + report.summary + '\n')
+  stream.write('  元素 ' + report.stats.elements + ' 个（含中文 ' + report.stats.cjkElements + ' 个），' +
+    '<wbr> ' + report.stats.wbrs + ' 个，<br> ' + report.stats.breaks + ' 个\n')
+  if (after) {
+    stream.write('  —— 修复后复审: ' + (after.ok ? '✓ 通过' : '✗ ' + after.summary) + '\n')
+  }
+  stream.write('\n')
   if (report.issues.length === 0) {
-    console.log('  无问题。')
+    stream.write('  无问题。\n')
     return
   }
   for (const issue of report.issues) {
     const sev = issue.severity === 'error' ? '错误' : issue.severity === 'warn' ? '警告' : '提示'
-    console.log(`  [${sev}] ${issue.where} ${issue.message}`)
-    if (issue.suggestion) console.log(`        建议: ${issue.suggestion}`)
+    stream.write('  [' + sev + '] ' + issue.where + ' ' + issue.message + '\n')
+    if (issue.suggestion) stream.write('        建议: ' + issue.suggestion + '\n')
   }
 }
 
