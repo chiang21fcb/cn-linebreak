@@ -1,0 +1,39 @@
+{
+  "name": "cn-linebreak",
+  "version": "0.1.0",
+  "description": "中文网页文案断行审查与修复工具：按《中文网页文案断行修复指南》检查 HTML 中的孤字行、词组被拆、缺少 keep-all 等问题，并可自动在标点后插入 <wbr>。",
+  "keywords": [
+    "chinese",
+    "line-break",
+    "typography",
+    "html",
+    "wbr",
+    "cjk",
+    "断行",
+    "中文排版"
+  ],
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "src/engine.js",
+  "bin": {
+    "cn-linebreak": "bin/cn-linebreak.js"
+  },
+  "files": [
+    "src",
+    "bin",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "author": "chiang21fcb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chiang21fcb/cn-linebreak.git"
+  }
+}
