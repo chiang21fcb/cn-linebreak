@@ -10,6 +10,7 @@
  * Options:
  *   --fix             审查并在 stdout 输出修复后的 HTML；审查摘要走 stderr
  *   --json            输出完整 JSON 报告（含 issues/css/stats/fixedHtml）
+ *   --output <file>   把结果写入文件（--fix 写修复后 HTML；否则写报告），stdout 保持干净
  *   --strict          警告也视为失败（影响退出码）
  *   --config <file>   读取 JSON 配置（protectedPhrases / breakAfter / …）
  *   --help            显示帮助
@@ -44,6 +45,7 @@ function usage() {
     '选项:\n' +
     '  --fix              审查并输出修复后的 HTML 到 stdout（摘要走 stderr）\n' +
     '  --json             输出完整 JSON 报告\n' +
+    '  --output <file>    把结果写入文件（--fix 写修复后 HTML；否则写报告）\n' +
     '  --strict           警告也计入失败（退出码 1）\n' +
     '  --config <file>    读取 JSON 配置文件\n' +
     '  --help             显示本帮助\n' +
@@ -54,7 +56,7 @@ function usage() {
 }
 
 function parseArgs(args) {
-  const opts = { fix: false, json: false, strict: false, config: null, file: null }
+  const opts = { fix: false, json: false, strict: false, config: null, output: null, file: null }
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i]
     if (a === '--fix') opts.fix = true
@@ -66,6 +68,11 @@ function parseArgs(args) {
       const v = args[i + 1]
       if (!v || v.startsWith('--')) return { error: '--config 需要一个文件路径' }
       opts.config = v
+      i += 1
+    } else if (a === '--output' || a === '-o') {
+      const v = args[i + 1]
+      if (!v || v.startsWith('--')) return { error: '--output 需要一个文件路径' }
+      opts.output = v
       i += 1
     } else if (a.startsWith('-') && a !== '-') {
       return { error: '未知选项: ' + a }
@@ -136,25 +143,53 @@ function main() {
   }
 
   if (opts.fix) {
-    // stdout: ONLY the fixed HTML; summary goes to stderr (re-audit the fix)
+    // fix 模式：输出修复后 HTML（--output 写文件，否则写 stdout）；复审摘要走 stderr
     let after
     try {
       after = auditHtml(report.fixedHtml, { mode: 'audit', config })
     } catch {
       after = report
     }
-    process.stdout.write(report.fixedHtml)
+    if (opts.output) {
+      try {
+        fs.writeFileSync(opts.output, report.fixedHtml)
+        process.stderr.write('已写入 ' + opts.output + '\n')
+      } catch (error) {
+        console.error('错误: 无法写入 ' + opts.output + ': ' + (error && error.message ? error.message : String(error)))
+        process.exit(3)
+      }
+    } else {
+      process.stdout.write(report.fixedHtml)
+    }
     printSummary(report, after, process.stderr)
     process.exitCode = exitCodeFor(after, config.strictWarnings)
     return
   }
 
-  if (opts.json) {
+  // audit 模式：报告写入 --output 文件（JSON 或文本），否则输出到 stdout
+  if (opts.output) {
+    const content = opts.json
+      ? JSON.stringify(report, null, 2) + '\n'
+      : renderTextReport(report, null)
+    try {
+      fs.writeFileSync(opts.output, content)
+      process.stderr.write('已写入 ' + opts.output + '\n')
+    } catch (error) {
+      console.error('错误: 无法写入 ' + opts.output + ': ' + (error && error.message ? error.message : String(error)))
+      process.exit(3)
+    }
+  } else if (opts.json) {
     process.stdout.write(JSON.stringify(report, null, 2) + '\n')
   } else {
     printSummary(report, null, process.stdout)
   }
   process.exitCode = exitCodeFor(report, config.strictWarnings)
+}
+
+function renderTextReport(report, after) {
+  const chunks = []
+  printSummary(report, after, { write(s) { chunks.push(s) } })
+  return chunks.join('')
 }
 
 function exitCodeFor(report, strict) {

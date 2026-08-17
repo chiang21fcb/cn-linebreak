@@ -4,6 +4,17 @@ All notable changes to cn-linebreak are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/), versions follow
 [SemVer](https://semver.org/lang/zh-CN/).
 
+## [Unreleased]
+
+### 新增（投稿准备与 v0.2.0 部分项）
+
+- CLI：`--output <file>` / `-o`（`--fix` 写修复后 HTML 到文件，audit 写报告到文件）
+- 测试：DSH 插件模块级测试（`test/plugin.test.mjs`，59 例）、
+  UAX #14 `LineBreakTest` 代表性夹具（`test/fixtures/linebreak-test.txt`）
+- 工程：GitHub Release 工作流（tag 自动打包 + 附 tarball）、`cn-linebreak.config.example.json`
+- 文档：`docs/INSTALLATION.md`（真实 DSH profile 安装验证记录）
+- README：CI / Release / License 徽章
+
 ## [0.1.1] - 2026-08-17
 
 ### 新增（v0.1.1：修正公开使用体验）

@@ -113,6 +113,30 @@ test('- is accepted as stdin alias', () => {
   assert.match(stdout, /元素/)
 })
 
+test('--output writes the result to a file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cnlb-out-'))
+  const inFile = path.join(dir, 'in.html')
+  const outFile = path.join(dir, 'fixed.html')
+  fs.writeFileSync(inFile, '<p>读产品手册，提取事实，输出文档。</p>', 'utf8')
+  const { code, stdout, stderr } = run(['--fix', '--output', outFile, inFile])
+  assert.equal(code, 0)
+  assert.equal(stdout, '') // fix 模式 + --output：stdout 保持干净
+  assert.match(stderr, /已写入/)
+  const written = fs.readFileSync(outFile, 'utf8')
+  assert.ok(written.includes('手册，<wbr>提取'))
+})
+
+test('--output in audit mode writes a text report', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cnlb-out2-'))
+  const inFile = path.join(dir, 'in.html')
+  const outFile = path.join(dir, 'report.txt')
+  fs.writeFileSync(inFile, '<p>一段中文文案。</p>', 'utf8')
+  const { code } = run(['--output', outFile, inFile])
+  assert.equal(code, 0)
+  const report = fs.readFileSync(outFile, 'utf8')
+  assert.match(report, /元素/)
+})
+
 test('unreadable --config exits 3', () => {
   const { code } = run(['--config', './no-such-config.json', '-'])
   assert.equal(code, 3)
