@@ -1,0 +1,20 @@
+# awesome-dsh-plugin 收录条目（待提交）
+#
+# 提交前需满足（见 https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md）：
+#   1. package.json 声明 dsh.bundle  ✅（已具备）
+#   2. 仓库创建满 1 天且提交数 ≥ 10   ⏳（2026-08-18 之后 + 补足提交数）
+#   3. 带 dsh-plugin topic            ✅（已设置）
+#
+# 提交步骤：
+#   1. 克隆 awesome-dsh-plugin，把本文件复制为 data/plugins/chiang21fcb__cn-linebreak.yml
+#   2. 在仓库根执行：npm ci && node scripts/generate-readme.mjs
+#   3. 提交这两个 README 与本 yml，开 PR
+#
+# 收录后 dsh-market（DSH 内置插件市场）会自动同步上架。
+---
+url: https://github.com/chiang21fcb/cn-linebreak
+name: chiang21fcb/cn-linebreak
+category: tools
+description:
+  en: 'Chinese web copy line-break linter and fixer: audits orphan lines, split phrases, missing word-break: keep-all and other high-risk patterns, and inserts <wbr> at punctuation boundaries; installs as a dsh plugin with the cn_linebreak_audit tool.'
+  zh: '中文网页文案断行审查与修复工具：检查孤字行、词组被拆、缺 keep-all 等高风险写法，并在标点后自动插入 <wbr>；作为 DSH 插件安装后提供 cn_linebreak_audit 工具。'
