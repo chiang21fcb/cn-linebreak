@@ -4,16 +4,28 @@ All notable changes to cn-linebreak are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/), versions follow
 [SemVer](https://semver.org/lang/zh-CN/).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-17
 
-### 新增（投稿准备与 v0.2.0 部分项）
+### 新增（优化方案 Phase A）
+
+- **breakAfter 默认值增加 ！？**（句末标点后亦可换行）（A3）
+- **insertWbr：行内标签末尾标点的 `<wbr>` 改插在闭合链之后**，标记更干净
+  （`<strong>第一步，</strong>第二步` → `<strong>第一步，</strong><wbr>第二步`）（A4）
+- **新增 `--diff` / `insertions`**：列出每处 `<wbr>` 插入点上下文，便于人工复核（A5）
+- **buildProtectedSpans 不再匹配标签属性内部**（A8）
+- **README 加英文摘要**（A6）
+- **补充测试**（行内闭合链、A5 insertions、保护词标签属性过滤、不匹配闭合标签、
+  `！？` 默认断点等）（A7）
+- **发布到 npm**（A1）
+
+### 工程
 
 - CLI：`--output <file>` / `-o`（`--fix` 写修复后 HTML 到文件，audit 写报告到文件）
 - 测试：DSH 插件模块级测试（`test/plugin.test.mjs`，59 例）、
   UAX #14 `LineBreakTest` 代表性夹具（`test/fixtures/linebreak-test.txt`）
 - 工程：GitHub Release 工作流（tag 自动打包 + 附 tarball）、`cn-linebreak.config.example.json`
 - 文档：`docs/INSTALLATION.md`（真实 DSH profile 安装验证记录）
-- README：CI / Release / License 徽章
+- README：CI / Release / License 徽章、英文摘要
 
 ## [0.1.1] - 2026-08-17
 

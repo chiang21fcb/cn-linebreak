@@ -26,7 +26,7 @@
 // ---------------------------------------------------------------------------
 
 // Default punctuation after which a break opportunity is welcome (guide §2)
-const BREAK_AFTER_DEFAULT = '，。；：、'
+const BREAK_AFTER_DEFAULT = '，。；：、！？'
 
 // Punctuation that must never sit alone at the start of a line (CLReq / GB-T 15834)
 // Closing punctuation: full-width + ASCII closers.
@@ -210,6 +210,8 @@ function collectElements(html) {
         element.wbrCount = (element.inner.match(/<wbr\b/gi) || []).length
         elements.push(element)
       }
+      // Silently ignore unmatched closing tags (malformed HTML).
+      // This prevents a spurious </div> from popping the wrong element.
       return
     }
 
@@ -336,15 +338,36 @@ function attrsHaveNoBreak(raw) {
 
 /**
  * Build sorted [start, end) spans of protected phrases over the raw HTML.
+ * Matches that fall inside HTML tag markup are discarded (the phrase happened
+ * to match an attribute value, not real text content).
  * Phrase occurrences wrapped in tags are not matched (use .no-break there).
  */
 function buildProtectedSpans(html, phrases) {
+  // Compute tag intervals to exclude attribute matches
+  const tagIntervals = []
+  const tagRe = /<[^>]*>/g
+  let m
+  while ((m = tagRe.exec(html)) !== null) {
+    tagIntervals.push([m.index, m.index + m[0].length])
+  }
+  function insideTag(pos) {
+    for (const [s, e] of tagIntervals) {
+      if (pos >= s && pos < e) return true
+    }
+    return false
+  }
+
   const spans = []
   for (const phrase of phrases) {
     if (typeof phrase !== 'string' || phrase.length < 2) continue
     let idx = html.indexOf(phrase)
     while (idx !== -1) {
-      spans.push([idx, idx + phrase.length])
+      // Skip if the phrase overlaps any tag interval
+      let overlapsTag = false
+      for (const [s, e] of tagIntervals) {
+        if (idx < e && idx + phrase.length > s) { overlapsTag = true; break }
+      }
+      if (!overlapsTag) spans.push([idx, idx + phrase.length])
       idx = html.indexOf(phrase, idx + 1)
     }
   }
@@ -358,8 +381,15 @@ function inSpans(spans, pos) {
   return false
 }
 
+function getInsertContext(html, index) {
+  // Extract a readable snippet (~8 chars before and after the punctuation)
+  const before = stripTags(html.slice(Math.max(0, index - 20), index)).slice(-10)
+  const after = stripTags(html.slice(index + 1, index + 25)).slice(0, 12)
+  return (before + '|' + after).replace(/\s+/g, ' ').trim()
+}
+
 /**
- * Insert <wbr> after breakAfter punctuation (default ，。；：、) inside text
+ * Insert <wbr> after breakAfter punctuation (default ，。；：、！？) inside text
  * content. Skips:
  *   - script/style/pre/code/textarea/title and .no-break regions (depth-aware)
  *   - positions already followed by <wbr>/<br>
@@ -372,6 +402,7 @@ function insertWbr(html, options) {
   const config = normalizeConfig(options && options.config)
   const breakChars = new Set(config.breakAfter.split(''))
   const protectedSpans = buildProtectedSpans(html, config.protectedPhrases)
+  const insertions = options && Array.isArray(options.insertions) ? options.insertions : null
 
   let out = ''
   let inTag = false
@@ -455,13 +486,45 @@ function insertWbr(html, options) {
         if (/^<\/\s*[a-zA-Z]/.test(after)) {
           // closing tag: only insert when real content follows the close chain
           if (hasContentAfterCloseChain(html, j)) {
-            out += ch + '<wbr>'
+            // Consume the inline close chain, output closing tags, then <wbr>
+            // e.g. 第一步，</strong>第二步 → 第一步，</strong><wbr>第二步
+            out += ch
+            let k = j
+            while (k < html.length) {
+              while (k < html.length && /\s/.test(html[k])) k += 1
+              if (k >= html.length) break
+              if (html[k] === '<') {
+                if (html.slice(k, k + 4) === '<!--') {
+                  const end = html.indexOf('-->', k + 4)
+                  if (end === -1) break
+                  out += html.slice(k, end + 3)
+                  k = end + 3
+                  continue
+                }
+                if (html[k + 1] === '/') {
+                  const tagEnd = html.indexOf('>', k + 2)
+                  if (tagEnd === -1) break
+                  const name = /^<\/([a-zA-Z][a-zA-Z0-9-]*)/.exec(html.slice(k, tagEnd + 1))
+                  const lower = name ? name[1].toLowerCase() : ''
+                  if (!INLINE_TAGS.has(lower)) break
+                  out += html.slice(k, tagEnd + 1)
+                  k = tagEnd + 1
+                  continue
+                }
+                break
+              }
+              break
+            }
+            if (insertions) insertions.push({ char: ch, context: getInsertContext(html, i) })
+            out += '<wbr>'
+            i = k - 1
           } else {
             out += ch
           }
           continue
         }
         // opening tag of a normal element: good break point
+        if (insertions) insertions.push({ char: ch, context: getInsertContext(html, i) })
         out += ch + '<wbr>'
         continue
       }
@@ -469,6 +532,7 @@ function insertWbr(html, options) {
         out += ch
         continue
       }
+      if (insertions) insertions.push({ char: ch, context: getInsertContext(html, i) })
       out += ch + '<wbr>'
       continue
     }
@@ -650,8 +714,9 @@ function auditHtml(html, options) {
 
   // --- Fix mode -----------------------------------------------------------
   let fixedHtml = ''
+  const insertions = []
   if (fixMode) {
-    fixedHtml = insertWbr(html, { config })
+    fixedHtml = insertWbr(html, { config, insertions })
     const after = (fixedHtml.match(/<wbr\b/gi) || []).length
     const inserted = after - docWbrCount
     issues.push({
@@ -679,7 +744,7 @@ function auditHtml(html, options) {
     insertedWbr: fixMode ? (fixedHtml.match(/<wbr\b/gi) || []).length - docWbrCount : 0,
   }
 
-  return { ok, summary, issues, css, stats, fixedHtml }
+  return { ok, summary, issues, css, stats, fixedHtml, insertions }
 }
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@
  *   cat page.html | cn-linebreak [options]  从 stdin 读取
  *
  * Options:
+ *   --diff            在 --fix 模式下额外输出每处 <wbr> 插入位置与上下文（stderr）
  *   --fix             审查并在 stdout 输出修复后的 HTML；审查摘要走 stderr
  *   --json            输出完整 JSON 报告（含 issues/css/stats/fixedHtml）
  *   --output <file>   把结果写入文件（--fix 写修复后 HTML；否则写报告），stdout 保持干净
@@ -43,6 +44,7 @@ function usage() {
     '      cat page.html | cn-linebreak [options]\n' +
     '\n' +
     '选项:\n' +
+    '  --diff             在 --fix 模式下额外输出每处 <wbr> 插入位置与上下文\n' +
     '  --fix              审查并输出修复后的 HTML 到 stdout（摘要走 stderr）\n' +
     '  --json             输出完整 JSON 报告\n' +
     '  --output <file>    把结果写入文件（--fix 写修复后 HTML；否则写报告）\n' +
@@ -56,10 +58,11 @@ function usage() {
 }
 
 function parseArgs(args) {
-  const opts = { fix: false, json: false, strict: false, config: null, output: null, file: null }
+  const opts = { fix: false, json: false, strict: false, config: null, output: null, diff: false, file: null }
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i]
     if (a === '--fix') opts.fix = true
+    else if (a === '--diff') opts.diff = true
     else if (a === '--json') opts.json = true
     else if (a === '--strict') opts.strict = true
     else if (a === '--help' || a === '-h') { opts.help = true }
@@ -162,6 +165,12 @@ function main() {
       process.stdout.write(report.fixedHtml)
     }
     printSummary(report, after, process.stderr)
+    if (opts.diff && report.insertions && report.insertions.length > 0) {
+      process.stderr.write('\n  插入了 ' + report.insertions.length + ' 处 <wbr>：\n')
+      for (const ins of report.insertions) {
+        process.stderr.write('    at "' + ins.context + '"\n')
+      }
+    }
     process.exitCode = exitCodeFor(after, config.strictWarnings)
     return
   }

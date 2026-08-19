@@ -109,6 +109,18 @@ export function apply(ctx, config) {
               insertedWbr: { type: 'number' },
             },
           },
+          insertions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['char', 'context'],
+              properties: {
+                char: { type: 'string' },
+                context: { type: 'string' },
+              },
+            },
+          },
         },
       },
       render(args, value) {

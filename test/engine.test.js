@@ -162,9 +162,9 @@ test('insertWbr does not touch code/pre/script content', () => {
   assert.ok(out.includes('<p>第一步，<wbr>开始。</p>'))
 })
 
-test('insertWbr handles punctuation at the end of an inline tag (v0.1.1)', () => {
+test('insertWbr handles punctuation at the end of an inline tag (v0.2.0 A4)', () => {
   const out = insertWbr('<h2><strong>第一步，</strong>第二步</h2>')
-  assert.equal(out, '<h2><strong>第一步，<wbr></strong>第二步</h2>')
+  assert.equal(out, '<h2><strong>第一步，</strong><wbr>第二步</h2>')
 })
 
 test('insertWbr does not insert when only closing tags follow', () => {
@@ -316,4 +316,72 @@ test('UAX#14 representative: no break opportunity between two Han chars', () => 
 test('UAX#14 representative: break opportunity after 、', () => {
   const out = insertWbr('<p>苹果、香蕉和梨。</p>')
   assert.ok(out.includes('苹果、<wbr>香蕉'))
+})
+
+// ---------------------------------------------------------------------------
+// A4: <wbr> after close chain
+// ---------------------------------------------------------------------------
+
+test('A4: <wbr> is placed after the inline close chain, not inside it', () => {
+  const out = insertWbr('<h2><strong>第一步，</strong>第二步</h2>')
+  assert.equal(out, '<h2><strong>第一步，</strong><wbr>第二步</h2>')
+})
+
+test('A4: <wbr> stays inside when only closing tags follow (end of element)', () => {
+  assert.equal(insertWbr('<h2><strong>自由。</strong></h2>'), '<h2><strong>自由。</strong></h2>')
+})
+
+// ---------------------------------------------------------------------------
+// A5: insertions / --diff
+// ---------------------------------------------------------------------------
+
+test('A5: fix mode returns insertions with context', () => {
+  const r = auditHtml('<p>读产品手册，提取事实，输出文档。</p>', { mode: 'fix' })
+  assert.ok(Array.isArray(r.insertions))
+  assert.equal(r.insertions.length, r.stats.insertedWbr)
+  for (const ins of r.insertions) {
+    assert.equal(typeof ins.char, 'string')
+    assert.equal(typeof ins.context, 'string')
+    assert.ok(ins.context.includes('|'))
+  }
+})
+
+test('A5: audit mode returns empty insertions', () => {
+  const r = auditHtml('<p>读产品手册，提取事实，输出文档。</p>')
+  assert.ok(Array.isArray(r.insertions))
+  assert.equal(r.insertions.length, 0)
+})
+
+// ---------------------------------------------------------------------------
+// A8: Robustness hardening
+// ---------------------------------------------------------------------------
+
+test('A8: buildProtectedSpans does not match phrases inside tag attributes', () => {
+  const { buildProtectedSpans } = require('../src/engine')
+  const html = '<p class="产品培训专员">内容</p>'
+  const spans = buildProtectedSpans(html, ['产品培训专员'])
+  assert.equal(spans.length, 0)
+})
+
+test('A8: buildProtectedSpans still matches phrases in real text', () => {
+  const { buildProtectedSpans } = require('../src/engine')
+  const html = '<p>产品培训专员，上岗。</p>'
+  const spans = buildProtectedSpans(html, ['产品培训专员'])
+  assert.equal(spans.length, 1)
+})
+
+test('A8: unmatched closing tags are silently ignored in collectElements', () => {
+  const els = collectElements('<p>内容</p></div><p>更多</p>')
+  assert.equal(els.length, 2)
+  assert.equal(els[0].tag, 'p')
+  assert.equal(els[1].tag, 'p')
+})
+
+// ---------------------------------------------------------------------------
+// A3: breakAfter includes !?
+// ---------------------------------------------------------------------------
+
+test('A3: !？ in default breakAfter causes <wbr> after them', () => {
+  const out = insertWbr('<p>好！继续做。</p>')
+  assert.ok(out.includes('好！<wbr>继续'))
 })

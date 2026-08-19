@@ -36,7 +36,7 @@ CLI 通过 `--config <file>` 读取 JSON 配置；DSH 插件通过 profile 中 `
 | `locale` | string | `zh-CN` | 保留字段（未来按地区差异微调禁则字符集） |
 | `selectors` | string[] | `[]` | 保留字段（未来限定审查目标元素） |
 | `protectedPhrases` | string[] | `[]` | 保护词典：`<wbr>` 不落在这些词内部；词被 `<br>` 拆开时报错 |
-| `breakAfter` | string | `，。；：、` | 修复模式在哪些标点后插入 `<wbr>`（按字符） |
+| `breakAfter` | string | `，。；：、！？` | 修复模式在哪些标点后插入 `<wbr>`（按字符） |
 | `minCjkLength` | number | `16` | 触发"零换行点"警告的最小汉字数 |
 | `minLastLineCjk` | number | `2` | 短行警告阈值：末行汉字数 ≤ 该值且以句号结尾 → 警告 |
 | `strictWarnings` | boolean | `false` | 警告计入失败（等同 CLI `--strict`） |

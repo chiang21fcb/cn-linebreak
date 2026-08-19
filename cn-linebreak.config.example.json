@@ -2,7 +2,7 @@
   "locale": "zh-CN",
   "selectors": ["h1", "h2", "p", ".card-body", ".step-body", "th", "td"],
   "protectedPhrases": ["产品培训专员", "cordis.yml", "MEMORY.md"],
-  "breakAfter": "，。；：、",
+  "breakAfter": "，。；：、！？",
   "minCjkLength": 16,
   "minLastLineCjk": 2,
   "strictWarnings": false

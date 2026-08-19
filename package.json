@@ -1,6 +1,6 @@
 {
   "name": "cn-linebreak",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "中文网页文案断行审查与修复工具：按《中文网页文案断行修复指南》检查显式断行错误及高风险写法，并提供保守的 <wbr> 自动修复。同时是可在 DeepSeek Harness (DSH) 中一键安装的标准插件包（dsh.bundle）。",
   "keywords": [
     "chinese",

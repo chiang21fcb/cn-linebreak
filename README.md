@@ -14,6 +14,19 @@
 
 > 核心原则（摘自指南）：中文断行不应由浏览器按单字随机决定；应先划分语义单元，再明确"可断、必断、不可断"三类边界。`<wbr>` = 可断，`<br>` = 必断，`.no-break` = 不可断。
 
+## Overview (English)
+
+cn-linebreak is a static HTML auditor for Chinese line-breaking. It checks
+explicit-`<br>` orphan lines, `word-break: keep-all` CSS coverage, CJK
+line-start/line-end punctuation rules (CLReq / GB-T 15834), protected-phrase
+splits, and long copy with no break points. In `--fix` mode it inserts `<wbr>`
+at natural punctuation boundaries for human review. The same package is a
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin
+exposing a `cn_linebreak_audit` tool.
+
+*Static-only: it cannot see the browser's rendered line boxes. Detecting real
+rendered orphan lines is roadmap v0.4.*
+
 零依赖，纯 JavaScript（CommonJS + 一个 ESM 插件入口），Node ≥ 18。
 
 ## 快速开始
