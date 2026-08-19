@@ -105,6 +105,7 @@ dsh plugin --profile <name> add github:chiang21fcb/cn-linebreak
 | --- | --- | --- |
 | `missing-keep-all` | 错误 | `<style>` 中没有任何 `word-break: keep-all` |
 | `keep-all-partial` | 警告 | 有 keep-all，但其选择器未覆盖 `h1/h2/p` 等文本元素 |
+| `keep-all-without-overflow-wrap` | 警告 | `keep-all` 缺少 `overflow-wrap: break-word` 兜底，长文本可能溢出容器 |
 | `broad-nowrap` | 错误 | `white-space: nowrap` 覆盖文本元素（`.no-break` 作用域不算） |
 | `orphan-line` | 错误/警告 | `<br>` 产生的整行只有一两个字 + 句号（孤字行） |
 | `line-start-punctuation` | 错误 | 行首出现闭式标点（CLReq/GB-T 15834 禁则） |

@@ -301,6 +301,13 @@ function auditCss(html) {
   const keepAllTrusted = keepAllRules.some((r) => coversTextElements(r.selector))
   const keepAllCoverage = keepAllTrusted ? 'trusted' : keepAllFound ? 'partial' : 'none'
 
+  // Check whether keep-all rules are paired with overflow-wrap protection.
+  // Without overflow-wrap: break-word/anywhere, long Chinese text with
+  // keep-all may overflow the container instead of breaking at characters.
+  const keepAllWithOverflowWrap = keepAllRules.some(
+    (r) => declHas(r.decls, 'overflow-wrap', 'break-word') || declHas(r.decls, 'overflow-wrap', 'anywhere'),
+  )
+
   // Broad nowrap = nowrap rule that reaches text elements; `.no-break`-scoped
   // rules (e.g. `:where(.no-break) { white-space: nowrap }`) are legitimate.
   const nowrapBroad = nowrapRules.some((r) => coversTextElements(r.selector) && !isNoBreakScoped(r.selector))
@@ -309,6 +316,7 @@ function auditCss(html) {
     hasStyle,
     keepAll: keepAllFound,
     keepAllCoverage,
+    keepAllWithOverflowWrap,
     lineBreakStrict,
     overflowWrapNormal,
     textWrapPretty,
@@ -613,6 +621,11 @@ function auditHtml(html, options) {
       push('warn', 'keep-all-partial', '<style>',
         '检测到 word-break: keep-all，但其选择器未覆盖 h1/h2/p 等目标文本元素，保护可能不生效。',
         '把 keep-all 应用到 :where(h1, h2, p, …) 这样的文本容器选择器上。')
+    }
+    if (css.keepAll && !css.keepAllWithOverflowWrap) {
+      push('warn', 'keep-all-without-overflow-wrap', '<style>',
+        'word-break: keep-all 缺少 overflow-wrap: break-word 兜底，长文本在窄容器中可能溢出。',
+        '在同一个规则上添加 overflow-wrap: break-word（或 overflow-wrap: anywhere），确保 keep-all 不会导致文本溢出容器。')
     }
     if (!css.lineBreakStrict) {
       push('warn', 'missing-line-break-strict', '<style>',

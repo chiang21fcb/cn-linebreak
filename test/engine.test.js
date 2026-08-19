@@ -385,3 +385,25 @@ test('A3: !？ in default breakAfter causes <wbr> after them', () => {
   const out = insertWbr('<p>好！继续做。</p>')
   assert.ok(out.includes('好！<wbr>继续'))
 })
+
+// ---------------------------------------------------------------------------
+// Keep-all + overflow-wrap check
+// ---------------------------------------------------------------------------
+
+test('keep-all without overflow-wrap: break-word warns', () => {
+  const r = auditHtml('<style>p { word-break: keep-all }</style><p>一段中文文案，可能溢出容器。</p>')
+  assert.ok(r.issues.some((i) => i.rule === 'keep-all-without-overflow-wrap' && i.severity === 'warn'))
+  assert.equal(r.css.keepAllWithOverflowWrap, false)
+})
+
+test('keep-all with overflow-wrap: break-word is clean', () => {
+  const r = auditHtml('<style>p { word-break: keep-all; overflow-wrap: break-word }</style><p>一段中文文案，有兜底保护。</p>')
+  assert.ok(r.css.keepAllWithOverflowWrap, true)
+  assert.ok(!r.issues.some((i) => i.rule === 'keep-all-without-overflow-wrap'))
+})
+
+test('keep-all with overflow-wrap: anywhere is clean', () => {
+  const r = auditHtml('<style>p { word-break: keep-all; overflow-wrap: anywhere }</style><p>一段中文文案，有兜底保护。</p>')
+  assert.ok(r.css.keepAllWithOverflowWrap, true)
+  assert.ok(!r.issues.some((i) => i.rule === 'keep-all-without-overflow-wrap'))
+})
