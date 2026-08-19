@@ -407,3 +407,50 @@ test('keep-all with overflow-wrap: anywhere is clean', () => {
   assert.ok(r.css.keepAllWithOverflowWrap, true)
   assert.ok(!r.issues.some((i) => i.rule === 'keep-all-without-overflow-wrap'))
 })
+
+// ---------------------------------------------------------------------------
+// Word-boundary breaking (useSegmenter)
+// ---------------------------------------------------------------------------
+
+test('insertWordBoundaryWbr: long CJK text without punctuation gets word-boundary breaks', () => {
+  const { insertWordBoundaryWbr, findWordBoundaries } = require('../src/engine')
+  const config = { useSegmenter: true }
+  const html = '<p>生成一个产品专员预设</p>'
+  const out = insertWordBoundaryWbr(html, { config })
+  // Should have at least one <wbr> inserted
+  assert.ok(out.includes('<wbr>'), 'word-boundary should insert <wbr>')
+  assert.ok(out.includes('生成一个<wbr>') || out.includes('产品专员<wbr>'), 'should break at semantic boundary')
+})
+
+test('insertWordBoundaryWbr: text with punctuation is not modified', () => {
+  const { insertWordBoundaryWbr } = require('../src/engine')
+  const config = { useSegmenter: true }
+  const html = '<p>读产品手册，提取事实，输出文档。</p>'
+  const out = insertWordBoundaryWbr(html, { config })
+  // No change because the text already has punctuation breaks and is short enough
+  assert.equal(out, html)
+})
+
+test('insertWordBoundaryWbr: disabled by default (useSegmenter: false)', () => {
+  const { insertWordBoundaryWbr } = require('../src/engine')
+  const html = '<p>生成一个产品专员预设</p>'
+  const out = insertWordBoundaryWbr(html, { config: {} })
+  assert.equal(out, html)
+})
+
+test('insertWordBoundaryWbr: skip regions are not modified', () => {
+  const { insertWordBoundaryWbr } = require('../src/engine')
+  const config = { useSegmenter: true }
+  const html = '<p>生成一个产品专员预设</p><pre>生成一个产品专员预设</pre>'
+  const out = insertWordBoundaryWbr(html, { config })
+  assert.ok(out.includes('<pre>生成一个产品专员预设</pre>'), 'pre content should not be modified')
+  assert.ok(out.includes('<p>') && out.includes('<wbr>'), 'p content should have wbr')
+})
+
+test('findWordBoundaries: short text (< 10 chars) returns no boundaries', () => {
+  const { findWordBoundaries } = require('../src/engine')
+  let segmenter = null
+  try { segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' }) } catch {}
+  const bounds = findWordBoundaries('你好世界', segmenter)
+  assert.equal(bounds.length, 0, 'short text should have no boundaries')
+})

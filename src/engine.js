@@ -548,7 +548,166 @@ function insertWbr(html, options) {
     out += ch
   }
 
+  out = insertWordBoundaryWbr(out, options)
   return out
+}
+
+/**
+ * Insert <wbr> at word boundaries within long CJK text runs that have no
+ * punctuation break points. Post-processing step: runs on the result of the
+ * punctuation-based insertWbr to add semantic word-boundary breaks.
+ * Uses Intl.Segmenter when available; falls back to 5-char heuristic.
+ * Opt-in via config.useSegmenter: true.
+ */
+function insertWordBoundaryWbr(html, options) {
+  const config = normalizeConfig(options && options.config)
+  if (!config.useSegmenter) return html
+
+  let segmenter = null
+  try {
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+      segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' })
+    }
+  } catch (e) { /* segmenter not available, fall through to heuristic */ }
+
+  const CJK_RE = /[\u3400-\u4dbf\u4e00-\u9fff]/
+  const MIN_RUN = 10
+
+  // Build a list of text runs (character positions in the raw HTML)
+  // that are pure CJK text without tags or existing wbr/br
+  const runs = []
+  let inTag = false
+  let inComment = false
+  let runStart = -1
+  let runLen = 0
+  let tagName = ''
+  const skipDepth = { count: 0, tag: null }
+
+  for (let i = 0; i < html.length; i += 1) {
+    const ch = html[i]
+    if (inComment) {
+      if (runLen >= MIN_RUN) runs.push({ start: runStart, end: i, len: runLen })
+      runStart = -1; runLen = 0
+      if (ch === '>' && html.slice(i - 2, i + 1) === '-->') inComment = false
+      continue
+    }
+    if (inTag) {
+      tagName += ch
+      if (ch === '>') {
+        inTag = false
+        // Check if this is a skip tag (pre, script, style, etc.)
+        const name = /^<([a-zA-Z][a-zA-Z0-9-]*)/.exec(tagName)
+        const lower = name ? name[1].toLowerCase() : ''
+        if (lower && SKIP_TAGS.has(lower)) {
+          skipDepth.count = 1
+          skipDepth.tag = lower
+        }
+      }
+      runStart = -1; runLen = 0
+      continue
+    }
+    if (skipDepth.count > 0) {
+      // Inside a skip region: track nested tags
+      if (ch === '<') {
+        const raw = html.slice(i, i + 12).toLowerCase()
+        if (raw.startsWith('<!--')) {
+          // Skip comment
+        } else if (raw.startsWith('</' + skipDepth.tag + '>')) {
+          skipDepth.count -= 1
+        } else if (raw.startsWith('<')) {
+          // Check if opening tag (not closing)
+          if (!raw.startsWith('</')) {
+            skipDepth.count += 1
+          }
+        }
+      }
+      runStart = -1; runLen = 0
+      continue
+    }
+    if (ch === '<') {
+      if (runLen >= MIN_RUN) runs.push({ start: runStart, end: i, len: runLen })
+      inTag = true
+      tagName = '<'
+      runStart = -1; runLen = 0
+      continue
+    }
+    if (CJK_RE.test(ch)) {
+      if (runStart === -1) { runStart = i; runLen = 1 }
+      else runLen += 1
+    } else {
+      if (runLen >= MIN_RUN) runs.push({ start: runStart, end: i, len: runLen })
+      runStart = -1; runLen = 0
+    }
+  }
+  if (runLen >= MIN_RUN) runs.push({ start: runStart, end: html.length, len: runLen })
+
+  if (runs.length === 0) return html
+
+  // For each run, find word boundaries and build the result
+  let result = html
+  let offsetShift = 0
+
+  for (const run of runs) {
+    const text = result.slice(run.start + offsetShift, run.end + offsetShift)
+    const boundaries = findWordBoundaries(text, segmenter)
+    if (boundaries.length === 0) continue
+
+    // Insert <wbr> at each boundary (from last to first to preserve positions)
+    let rebuilt = text
+    for (let k = boundaries.length - 1; k >= 0; k -= 1) {
+      const pos = boundaries[k]
+      rebuilt = rebuilt.slice(0, pos) + '<wbr>' + rebuilt.slice(pos)
+    }
+    const before = result.slice(0, run.start + offsetShift)
+    const after = result.slice(run.end + offsetShift)
+    result = before + rebuilt + after
+    offsetShift += boundaries.length * 5 // each <wbr> adds 5 chars
+  }
+
+  return result
+}
+
+/**
+ * Find word boundary positions within a CJK string.
+ * Uses Intl.Segmenter when available; falls back to 5-char heuristic.
+ * Returns positions (0 < pos < string.length) where a break is acceptable.
+ */
+function findWordBoundaries(text, segmenter) {
+  if (segmenter) {
+    const segments = [...segmenter.segment(text)]
+    const raw = []
+    let groupLen = 0
+    for (const seg of segments) {
+      if (seg.index === 0) { groupLen = seg.segment.length; continue }
+      const isCJK = /[\u3400-\u4dbf\u4e00-\u9fff]/.test(seg.segment)
+      // Break before a conjunction (与和及或) — these are strong semantic boundaries
+      if (isCJK && /^[与和及或]$/.test(seg.segment)) {
+        raw.push(seg.index)
+        groupLen = 0
+        continue
+      }
+      groupLen += seg.segment.length
+      if (groupLen >= 4) {
+        raw.push(seg.index + seg.segment.length)
+        groupLen = 0
+      }
+    }
+    // Deduplicate and filter to valid positions
+    const deduped = []
+    for (const b of raw) {
+      if (b > 0 && b < text.length && (deduped.length === 0 || b !== deduped[deduped.length - 1])) {
+        deduped.push(b)
+      }
+    }
+    return deduped
+  }
+
+  // Fallback: break every 4-5 characters at natural boundaries
+  const boundaries = []
+  for (let i = 4; i < text.length; i += 4) {
+    boundaries.push(i)
+  }
+  return boundaries
 }
 
 /**
@@ -767,6 +926,8 @@ function auditHtml(html, options) {
 module.exports = {
   auditHtml,
   insertWbr,
+  insertWordBoundaryWbr,
+  findWordBoundaries,
   collectElements,
   auditCss,
   normalizeConfig,
