@@ -45,12 +45,6 @@ npx cn-linebreak --json page.html
 cat page.html | npx cn-linebreak
 ```
 
-尚未发布到 npm 时，可用 git 直装：
-
-```bash
-npx github:chiang21fcb/cn-linebreak page.html
-```
-
 ## CLI
 
 ```
